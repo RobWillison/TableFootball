@@ -9,6 +9,9 @@ pitch_coords = [(118, 90), (547, 90), (559, 360), (116, 360), (118, 90)]
 
 fps = FPS().start()
 
+lower = (1, 0, 0)
+upper = (10, 255, 255)
+
 while(True):
     fps.update()
     fps.stop()
@@ -19,19 +22,21 @@ while(True):
 
     original_frame = original_frame[80:380, 108:579]
 
-    # Our operations on the frame come here
-    gray = cv2.cvtColor(original_frame, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(original_frame, (11, 11), 0)
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-    circles = cv2.HoughCircles(gray,cv2.HOUGH_GRADIENT,1,100,
-                            param1=80,param2=15,minRadius=10,maxRadius=17)
-    if circles is None:
-        continue
+    mask = cv2.inRange(hsv, lower, upper)
+    mask = cv2.erode(mask, None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
 
-    for i in circles[0,:]:
-        # draw the outer circle
-        cv2.circle(original_frame,(i[0],i[1]),int(i[2]),(0,255,0),2)
-        # draw the center of the circle
-        cv2.circle(original_frame,(i[0],i[1]),2,(0,0,255),3)
+    contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
+		cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        ((x, y), radius) = cv2.minEnclosingCircle(contour)
+
+        if radius < 20 and radius > 10:
+            cv2.circle(original_frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
 
     k, v = "FPS", "{:.2f}".format(fps.fps())
     text = "{}: {}".format(k, v)
